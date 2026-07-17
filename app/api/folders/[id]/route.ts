@@ -60,11 +60,17 @@ export async function DELETE(
 
     // 收集所有需要删除的文件路径
     const filePaths: string[] = [];
-    function collectFilePaths(f: typeof folder) {
+
+    interface FolderWithFiles {
+      files: { path: string }[];
+      children: FolderWithFiles[];
+    }
+
+    function collectFilePaths(f: FolderWithFiles) {
       f.files.forEach((file) => filePaths.push(file.path));
       f.children.forEach((child) => collectFilePaths(child));
     }
-    collectFilePaths(folder);
+    collectFilePaths(folder as unknown as FolderWithFiles);
 
     // 删除磁盘上的文件
     await Promise.all(filePaths.map((fp) => deleteFile(fp)));
