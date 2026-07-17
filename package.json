@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "npx prisma migrate deploy && next start -p ${PORT:-3000} -H 0.0.0.0",
+    "postinstall": "prisma generate",
     "lint": "eslint",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio"
