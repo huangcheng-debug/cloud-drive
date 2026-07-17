@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Folder, FolderOpen, ChevronRight, ChevronDown } from "lucide-react";
+import { Plus, Folder, FolderOpen, ChevronRight, ChevronDown, X } from "lucide-react";
 
 interface FolderNode {
   id: string;
@@ -16,9 +16,13 @@ interface FolderNode {
 interface SidebarProps {
   selectedFolderId: string | null;
   onFolderSelect: (folderId: string | null) => void;
+  /** 移动端抽屉是否打开 */
+  mobileOpen?: boolean;
+  /** 关闭移动端抽屉 */
+  onMobileClose?: () => void;
 }
 
-export default function Sidebar({ selectedFolderId, onFolderSelect }: SidebarProps) {
+export default function Sidebar({ selectedFolderId, onFolderSelect, mobileOpen, onMobileClose }: SidebarProps) {
   const [folders, setFolders] = useState<FolderNode[]>([]);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [newFolderName, setNewFolderName] = useState("");
@@ -66,6 +70,11 @@ export default function Sidebar({ selectedFolderId, onFolderSelect }: SidebarPro
     fetchFolders();
   };
 
+  const handleFolderSelect = (id: string | null) => {
+    onFolderSelect(id);
+    if (onMobileClose) onMobileClose();
+  };
+
   const renderFolderNode = (folder: FolderNode, depth: number) => {
     const isExpanded = expanded.has(folder.id);
     const isSelected = selectedFolderId === folder.id;
@@ -74,11 +83,11 @@ export default function Sidebar({ selectedFolderId, onFolderSelect }: SidebarPro
     return (
       <div key={folder.id}>
         <div
-          className={`flex items-center gap-1 py-1 px-2 rounded-md cursor-pointer group transition-colors ${
+          className={`flex items-center gap-1 py-2 px-2 rounded-md cursor-pointer group transition-colors ${
             isSelected ? "bg-accent text-accent-foreground" : "hover:bg-muted/50"
           }`}
           style={{ paddingLeft: `${8 + depth * 16}px` }}
-          onClick={() => onFolderSelect(folder.id)}
+          onClick={() => handleFolderSelect(folder.id)}
         >
           <button
             className="p-0.5 hover:bg-muted rounded-sm opacity-50 hover:opacity-100"
@@ -118,21 +127,32 @@ export default function Sidebar({ selectedFolderId, onFolderSelect }: SidebarPro
     );
   };
 
-  return (
-    <div className="w-60 h-full border-r flex flex-col bg-background">
-      <div className="p-3 border-b">
+  const sidebarBody = (
+    <>
+      <div className="p-3 border-b flex items-center justify-between shrink-0">
         <h2 className="font-semibold text-sm flex items-center gap-2">
           <Folder className="h-4 w-4" />
           目录
         </h2>
+        {/* 移动端关闭按钮 */}
+        {onMobileClose && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 md:hidden"
+            onClick={onMobileClose}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
-      <ScrollArea className="flex-1 px-2 py-1">
+      <ScrollArea className="flex-1 px-2 py-1 min-h-0">
         <div
-          className={`flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer transition-colors ${
+          className={`flex items-center gap-2 py-2 px-2 rounded-md cursor-pointer transition-colors ${
             selectedFolderId === null ? "bg-accent text-accent-foreground" : "hover:bg-muted/50"
           }`}
-          onClick={() => onFolderSelect(null)}
+          onClick={() => handleFolderSelect(null)}
         >
           <span className="w-5" />
           <FolderOpen className="h-4 w-4 text-blue-500" />
@@ -141,11 +161,11 @@ export default function Sidebar({ selectedFolderId, onFolderSelect }: SidebarPro
         {folders.map((folder) => renderFolderNode(folder, 0))}
       </ScrollArea>
 
-      <div className="p-2 border-t">
+      <div className="p-2 border-t shrink-0">
         {showNewFolderInput ? (
           <div className="flex gap-1">
             <Input
-              className="h-8 text-sm"
+              className="h-9 text-sm"
               placeholder="文件夹名称"
               value={newFolderName}
               onChange={(e) => setNewFolderName(e.target.value)}
@@ -155,7 +175,7 @@ export default function Sidebar({ selectedFolderId, onFolderSelect }: SidebarPro
               }}
               autoFocus
             />
-            <Button size="sm" className="h-8" onClick={createFolder}>
+            <Button size="sm" className="h-9" onClick={createFolder}>
               确定
             </Button>
           </div>
@@ -171,6 +191,32 @@ export default function Sidebar({ selectedFolderId, onFolderSelect }: SidebarPro
           </Button>
         )}
       </div>
-    </div>
+    </>
+  );
+
+  return (
+    <>
+      {/* 桌面端固定侧边栏 */}
+      <div className="hidden md:flex w-60 h-full border-r flex-col bg-background shrink-0">
+        {sidebarBody}
+      </div>
+
+      {/* 移动端遮罩 */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/50"
+          onClick={onMobileClose}
+        />
+      )}
+
+      {/* 移动端滑出抽屉 */}
+      <div
+        className={`md:hidden fixed top-0 left-0 z-50 h-full w-72 bg-background border-r shadow-xl flex flex-col transition-transform duration-300 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        {sidebarBody}
+      </div>
+    </>
   );
 }
