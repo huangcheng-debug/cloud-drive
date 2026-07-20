@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { store } from "@/lib/store";
 import { saveFile } from "@/lib/upload";
 
 // GET /api/files?folderId=&search= — 获取文件列表
@@ -9,23 +9,7 @@ export async function GET(request: NextRequest) {
     const folderId = searchParams.get("folderId");
     const search = searchParams.get("search") || "";
 
-    const where: Record<string, unknown> = {};
-
-    if (folderId === "null" || folderId === "root" || !folderId) {
-      where.folderId = null;
-    } else {
-      where.folderId = folderId;
-    }
-
-    if (search) {
-      where.name = { contains: search };
-    }
-
-    const files = await prisma.file.findMany({
-      where: where as any,
-      orderBy: { createdAt: "desc" },
-    });
-
+    const files = await store.getFiles({ folderId, search });
     return NextResponse.json(files);
   } catch (error) {
     console.error("GET /api/files error:", error);
@@ -47,14 +31,12 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const filePath = await saveFile(buffer, file.name);
 
-    const record = await prisma.file.create({
-      data: {
-        name: file.name,
-        size: file.size,
-        type: file.type || "application/octet-stream",
-        path: filePath,
-        folderId: folderId && folderId !== "null" && folderId !== "root" ? folderId : null,
-      },
+    const record = await store.createFile({
+      name: file.name,
+      size: file.size,
+      type: file.type || "application/octet-stream",
+      path: filePath,
+      folderId: folderId && folderId !== "null" && folderId !== "root" ? folderId : null,
     });
 
     return NextResponse.json(record, { status: 201 });

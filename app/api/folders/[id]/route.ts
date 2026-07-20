@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
-import { deleteFile } from "@/lib/upload";
+import { store } from "@/lib/store";
 
 // PATCH /api/folders/[id] — 重命名文件夹
 export async function PATCH(
@@ -16,11 +15,7 @@ export async function PATCH(
       return NextResponse.json({ error: "文件夹名称不能为空" }, { status: 400 });
     }
 
-    const folder = await prisma.folder.update({
-      where: { id },
-      data: { name: name.trim() },
-    });
-
+    const folder = await store.updateFolder(id, name.trim());
     return NextResponse.json(folder);
   } catch (error) {
     console.error("PATCH /api/folders/[id] error:", error);
@@ -35,49 +30,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-
-    // 获取文件夹及其所有子文件
-    const folder = await prisma.folder.findUnique({
-      where: { id },
-      include: {
-        files: true,
-        children: {
-          include: {
-            files: true,
-            children: {
-              include: {
-                files: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!folder) {
-      return NextResponse.json({ error: "文件夹不存在" }, { status: 404 });
-    }
-
-    // 收集所有需要删除的文件路径
-    const filePaths: string[] = [];
-
-    interface FolderWithFiles {
-      files: { path: string }[];
-      children: FolderWithFiles[];
-    }
-
-    function collectFilePaths(f: FolderWithFiles) {
-      f.files.forEach((file) => filePaths.push(file.path));
-      f.children.forEach((child) => collectFilePaths(child));
-    }
-    collectFilePaths(folder as unknown as FolderWithFiles);
-
-    // 删除磁盘上的文件
-    await Promise.all(filePaths.map((fp) => deleteFile(fp)));
-
-    // 删除数据库记录（级联删除子文件夹和文件）
-    await prisma.folder.delete({ where: { id } });
-
+    await store.deleteFolder(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE /api/folders/[id] error:", error);

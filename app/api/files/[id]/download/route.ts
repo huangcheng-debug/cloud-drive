@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/db";
+import { store } from "@/lib/store";
 import { readFile } from "fs/promises";
 
 export async function GET(
@@ -9,7 +9,7 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const file = await prisma.file.findUnique({ where: { id } });
+    const file = await store.getFile(id);
 
     if (!file) {
       return NextResponse.json({ error: "文件不存在" }, { status: 404 });
